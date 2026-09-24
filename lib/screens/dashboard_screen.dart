@@ -5,8 +5,9 @@ import '../widgets/status_cards.dart';
 import '../widgets/live_feed.dart';
 import '../widgets/drive_control.dart';
 import '../widgets/telemetry_panel.dart';
-import '../widgets/auxiliary_systems.dart';
+import '../widgets/thermal_feed.dart';
 import '../widgets/command_log.dart';
+import '../widgets/auxiliary_systems.dart';
 import '../theme.dart';
 import 'package:provider/provider.dart';
 import '../providers/rover_state.dart';
@@ -78,40 +79,29 @@ class DashboardScreen extends StatelessWidget {
                         LayoutBuilder(
                           builder: (context, constraints) {
                             if (constraints.maxWidth > 1000) {
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              return Column(
                                 children: [
-                                  // Left Column
-                                  Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                      children: const [
-                                        DriveControlPanel(),
-                                        SizedBox(height: 24),
-                                        TelemetryPanel(),
+                                  // Top Row: Cameras
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(child: const LiveFeedPanel()),
+                                      const SizedBox(width: 24),
+                                      Expanded(child: const ThermalFeedPanel()),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  // Bottom Row: Controls & Logs
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Expanded(flex: 3, child: const DriveControlPanel()),
+                                        const SizedBox(width: 24),
+                                        Expanded(flex: 5, child: const CommandLogPanel()),
                                       ],
                                     ),
-                                  ),
-                                  const SizedBox(width: 24),
-                                  
-                                  // Center Column (Stream)
-                                  Expanded(
-                                    flex: 5,
-                                    child: const LiveFeedPanel(),
-                                  ),
-                                  const SizedBox(width: 24),
-                                  
-                                  // Right Column
-                                  Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                      children: const [
-                                        AuxiliarySystemsPanel(),
-                                        SizedBox(height: 24),
-                                        CommandLogPanel(),
-                                      ],
-                                    ),
-                                  ),
+                                  )
                                 ],
                               );
                             } else {
@@ -119,29 +109,23 @@ class DashboardScreen extends StatelessWidget {
                                 children: [
                                   const LiveFeedPanel(),
                                   const SizedBox(height: 24),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          children: const [
-                                            DriveControlPanel(),
-                                            SizedBox(height: 24),
-                                            TelemetryPanel(),
-                                          ],
+                                  const ThermalFeedPanel(),
+                                  const SizedBox(height: 24),
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: const DriveControlPanel(),
                                         ),
-                                      ),
-                                      const SizedBox(width: 24),
-                                      Expanded(
-                                        child: Column(
-                                          children: const [
-                                            AuxiliarySystemsPanel(),
-                                            SizedBox(height: 24),
-                                            CommandLogPanel(),
-                                          ],
+                                        const SizedBox(width: 24),
+                                        Expanded(
+                                          flex: 5,
+                                          child: const CommandLogPanel(),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   )
                                 ],
                               );

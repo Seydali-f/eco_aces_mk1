@@ -88,17 +88,18 @@ class StatusCardsRow extends StatelessWidget {
   }
 
   Widget _buildEnvironmentCard(RoverState state) {
+    bool isDanger = state.ch4Level > 5.0 || state.temperature > 40.0;
     return _BaseStatusCard(
       title: 'ENVIRONMENT',
-      value: 'Safe',
-      icon: Icons.shield_outlined,
-      iconColor: AppTheme.safeGreen,
-      valueColor: AppTheme.safeGreen,
+      value: isDanger ? 'Danger' : 'Safe',
+      icon: isDanger ? Icons.warning_amber_rounded : Icons.shield_outlined,
+      iconColor: isDanger ? AppTheme.dangerRed : AppTheme.safeGreen,
+      valueColor: isDanger ? AppTheme.dangerRed : AppTheme.safeGreen,
       bottomContent: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('CH₄ : 1.2%', style: TextStyle(fontSize: 12, color: AppTheme.secondaryText)),
-          Text('CO : 18 ppm', style: TextStyle(fontSize: 12, color: AppTheme.secondaryText)),
+        children: [
+          Text('Gas : ${state.ch4Level.toStringAsFixed(1)}', style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText)),
+          Text('Temp: ${state.temperature.toStringAsFixed(1)}°C', style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText)),
         ],
       ),
     );

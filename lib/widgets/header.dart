@@ -14,6 +14,8 @@ class Header extends StatefulWidget {
 class _HeaderState extends State<Header> {
   late Timer _timer;
   String _currentTime = '';
+  String _currentDate = '';
+  final List<String> _months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
   @override
   void initState() {
@@ -28,6 +30,7 @@ class _HeaderState extends State<Header> {
     final now = DateTime.now();
     setState(() {
       _currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+      _currentDate = '${now.day} ${_months[now.month - 1]} ${now.year}';
     });
   }
 
@@ -80,35 +83,56 @@ class _HeaderState extends State<Header> {
 
           // Right: Statuses
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.shield, color: AppTheme.safeGreen, size: 16),
+              const Icon(Icons.wifi_tethering, color: AppTheme.safeGreen, size: 16),
               const SizedBox(width: 6),
-              const Text('Semnary 2y', style: TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
+              const Text('Telemetry OK', style: TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
               const SizedBox(width: 24),
-              Text(_currentTime, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              
+              // Clock
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_currentTime, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Share Tech Mono')),
+                  Text(_currentDate, style: const TextStyle(fontSize: 10, color: AppTheme.secondaryText, fontFamily: 'Share Tech Mono')),
+                ],
+              ),
               const SizedBox(width: 24),
               
               // Bell Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.panel,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: const Icon(Icons.notifications, color: AppTheme.dangerRed, size: 16),
-              ),
-              const SizedBox(width: 12),
+              const Icon(Icons.notifications, color: AppTheme.dangerRed, size: 20),
+              const SizedBox(width: 16),
               
-              // Profile Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.panel,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: const Icon(Icons.person, color: AppTheme.primaryText, size: 16),
+              // Profile Section
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.panel,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    child: const Icon(Icons.person, color: AppTheme.primaryText, size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Operator 01', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Row(
+                        children: [
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.safeGreen)),
+                          const SizedBox(width: 4),
+                          const Text('Online', style: TextStyle(fontSize: 10, color: AppTheme.secondaryText)),
+                        ],
+                      )
+                    ],
+                  ),
+                ],
               ),
             ],
           )

@@ -186,13 +186,13 @@ class Sidebar extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.cloud, color: Colors.orangeAccent, size: 18),
+              Icon(state.weatherIcon, color: Colors.orangeAccent, size: 18),
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('30°C', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  Text('Light rain', style: TextStyle(color: AppTheme.secondaryText, fontSize: 9)),
+                children: [
+                  Text(state.weatherTemp, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  Text(state.weatherDesc, style: const TextStyle(color: AppTheme.secondaryText, fontSize: 9)),
                 ],
               )
             ],

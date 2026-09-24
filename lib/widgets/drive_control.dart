@@ -29,35 +29,41 @@ class _DriveControlPanelState extends State<DriveControlPanel> {
   }
 
   void _handleKeyEvent(KeyEvent event) {
+    final roverState = context.read<RoverState>();
     if (event is KeyDownEvent) {
-      final roverState = context.read<RoverState>();
       switch (event.logicalKey) {
         case LogicalKeyboardKey.keyW:
-          roverState.sendCommand('W', 'FORWARD');
+          if (roverState.currentCommand != 'FORWARD') roverState.sendCommand('W', 'FORWARD');
           break;
         case LogicalKeyboardKey.keyS:
-          roverState.sendCommand('S', 'BACKWARD');
+          if (roverState.currentCommand != 'BACKWARD') roverState.sendCommand('S', 'BACKWARD');
           break;
         case LogicalKeyboardKey.keyA:
-          roverState.sendCommand('A', 'TURN LEFT');
+          if (roverState.currentCommand != 'TURN LEFT') roverState.sendCommand('A', 'TURN LEFT');
           break;
         case LogicalKeyboardKey.keyD:
-          roverState.sendCommand('D', 'TURN RIGHT');
+          if (roverState.currentCommand != 'TURN RIGHT') roverState.sendCommand('D', 'TURN RIGHT');
           break;
         case LogicalKeyboardKey.keyQ:
-          roverState.sendCommand('Q', 'FORWARD LEFT');
+          if (roverState.currentCommand != 'FORWARD LEFT') roverState.sendCommand('Q', 'FORWARD LEFT');
           break;
         case LogicalKeyboardKey.keyE:
-          roverState.sendCommand('E', 'FORWARD RIGHT');
+          if (roverState.currentCommand != 'FORWARD RIGHT') roverState.sendCommand('E', 'FORWARD RIGHT');
           break;
         case LogicalKeyboardKey.space:
           roverState.stopRover();
           break;
       }
     } else if (event is KeyUpEvent) {
-      final roverState = context.read<RoverState>();
-      if (event.logicalKey != LogicalKeyboardKey.space) {
-        roverState.releaseCommand();
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.keyW:
+        case LogicalKeyboardKey.keyS:
+        case LogicalKeyboardKey.keyA:
+        case LogicalKeyboardKey.keyD:
+        case LogicalKeyboardKey.keyQ:
+        case LogicalKeyboardKey.keyE:
+          roverState.stopRover();
+          break;
       }
     }
   }
@@ -73,56 +79,65 @@ class _DriveControlPanelState extends State<DriveControlPanel> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text('DRIVE CONTROL', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryText, fontSize: 12)),
-            const SizedBox(height: 32),
-            
-            // Top row: Q, W, E
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildDriveKey(context, 'Q', 'FORWARD LEFT'),
-                const SizedBox(width: 4),
-                _buildDriveKey(context, 'W', 'FORWARD'),
-                const SizedBox(width: 4),
-                _buildDriveKey(context, 'E', 'FORWARD RIGHT'),
-              ],
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Top row: Q, W, E
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildDriveKey(context, 'Q', 'FORWARD LEFT', Icons.turn_left),
+                          const SizedBox(width: 4),
+                          _buildDriveKey(context, 'W', 'FORWARD', Icons.arrow_upward),
+                          const SizedBox(width: 4),
+                          _buildDriveKey(context, 'E', 'FORWARD RIGHT', Icons.turn_right),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      // Middle row: A, STOP, D
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildDriveKey(context, 'A', 'TURN LEFT', Icons.keyboard_arrow_left),
+                          const SizedBox(width: 4),
+                          _buildStopKey(context),
+                          const SizedBox(width: 4),
+                          _buildDriveKey(context, 'D', 'TURN RIGHT', Icons.keyboard_arrow_right),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      // Bottom row: S
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildDriveKey(context, 'S', 'BACKWARD', Icons.arrow_downward),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
-            
-            // Middle row: A, STOP, D
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildDriveKey(context, 'A', 'TURN LEFT'),
-                const SizedBox(width: 4),
-                _buildStopKey(context),
-                const SizedBox(width: 4),
-                _buildDriveKey(context, 'D', 'TURN RIGHT'),
-              ],
-            ),
-            const SizedBox(height: 4),
-            
-            // Bottom row: S
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildDriveKey(context, 'S', 'BACKWARD'),
-              ],
-            ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDriveKey(BuildContext context, String label, String cmdName) {
+  Widget _buildDriveKey(BuildContext context, String keyBind, String cmdName, IconData icon) {
     final roverState = context.watch<RoverState>();
     final isActive = roverState.currentCommand == cmdName;
 
     return GestureDetector(
-      onTapDown: (_) => context.read<RoverState>().sendCommand(label, cmdName),
-      onTapUp: (_) => context.read<RoverState>().releaseCommand(),
-      onTapCancel: () => context.read<RoverState>().releaseCommand(),
+      onTapDown: (_) => context.read<RoverState>().sendCommand(keyBind, cmdName),
+      onTapUp: (_) => context.read<RoverState>().stopRover(),
+      onTapCancel: () => context.read<RoverState>().stopRover(),
       child: HexagonWidget(
         width: 65,
         height: 75,
@@ -130,13 +145,10 @@ class _DriveControlPanelState extends State<DriveControlPanel> {
         hasGlow: isActive,
         glowColor: AppTheme.infoBlue,
         isPressed: isActive,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: isActive ? Colors.white : AppTheme.secondaryText,
-          ),
+        child: Icon(
+          icon,
+          size: 28,
+          color: isActive ? Colors.white : AppTheme.secondaryText,
         ),
       ),
     );

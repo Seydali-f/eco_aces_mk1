@@ -20,8 +20,6 @@ class AuxiliarySystemsPanel extends StatelessWidget {
           const Text('AUXILIARY SYSTEMS', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryText)),
           const SizedBox(height: 16),
           
-          _buildToggle(context, 'HEADLIGHT', 'ROVER LIGHT', roverState.headlightOn, Icons.lightbulb_outline),
-          _buildToggle(context, 'WARNING_HORN', 'WARNING HORN', roverState.warningHornOn, Icons.volume_up),
           _buildToggle(context, 'CAMERA', 'CAMERA POWER', roverState.cameraPowerOn, Icons.videocam),
         ],
       ),

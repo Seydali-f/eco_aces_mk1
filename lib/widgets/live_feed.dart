@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
+
 import '../providers/rover_state.dart';
 import '../theme.dart';
 import 'ui/glass_panel.dart';
@@ -22,19 +25,32 @@ class LiveFeedPanel extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('LIVE STREAM (AI BACKEND)', style: TextStyle(fontWeight: FontWeight.bold)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.videocam, size: 16, color: AppTheme.safeGreen),
-                      SizedBox(width: 8),
-                      Text('Go Live', style: TextStyle(color: AppTheme.safeGreen, fontSize: 12)),
-                    ],
+                InkWell(
+                  onTap: () {
+                    context.read<RoverState>().toggleAuxSystem('CAMERA');
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: roverState.cameraPowerOn ? AppTheme.safeGreen.withOpacity(0.2) : AppTheme.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: roverState.cameraPowerOn ? AppTheme.safeGreen : AppTheme.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(roverState.cameraPowerOn ? Icons.videocam_off : Icons.videocam, 
+                             size: 16, 
+                             color: roverState.cameraPowerOn ? AppTheme.dangerRed : AppTheme.safeGreen),
+                        const SizedBox(width: 8),
+                        Text(roverState.cameraPowerOn ? 'Stop Live' : 'Go Live', 
+                             style: TextStyle(
+                               color: roverState.cameraPowerOn ? AppTheme.dangerRed : AppTheme.safeGreen, 
+                               fontSize: 12,
+                               fontWeight: FontWeight.bold,
+                             )),
+                      ],
+                    ),
                   ),
                 )
               ],
@@ -65,24 +81,7 @@ class LiveFeedPanel extends StatelessWidget {
                     )
                   else
                     // Actual Stream from Python backend
-                    Image.network(
-                      'http://127.0.0.1:5000/video_feed',
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 80, color: AppTheme.stopOrange),
-                            const SizedBox(height: 16),
-                            const Text('AI BACKEND OFFLINE', style: TextStyle(color: AppTheme.stopOrange, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                            const SizedBox(height: 8),
-                            const Text('Ensure Python Flask server is running on port 5000', style: TextStyle(color: AppTheme.secondaryText, fontSize: 11)),
-                          ],
-                        );
-                      },
-                    ),
+                    const MjpegWebView(streamUrl: 'http://127.0.0.1:5000/video_feed'),
                   
                   // Top overlay info
                   if (roverState.cameraPowerOn)
@@ -90,9 +89,19 @@ class LiveFeedPanel extends StatelessWidget {
                       top: 16,
                       left: 16,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                        child: const Text('REC • YOLOv8', style: TextStyle(color: AppTheme.safeGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppTheme.safeGreen.withOpacity(0.5)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.circle, color: AppTheme.safeGreen, size: 12),
+                            SizedBox(width: 8),
+                            Text('LIVE (AI ASSISTED)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -102,5 +111,49 @@ class LiveFeedPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class MjpegWebView extends StatefulWidget {
+  final String streamUrl;
+  const MjpegWebView({Key? key, required this.streamUrl}) : super(key: key);
+
+  @override
+  State<MjpegWebView> createState() => _MjpegWebViewState();
+}
+
+class _MjpegWebViewState extends State<MjpegWebView> {
+  late final String _viewId;
+  late final html.ImageElement _imageElement;
+
+  @override
+  void initState() {
+    super.initState();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    _viewId = 'mjpeg_stream_$timestamp';
+    
+    _imageElement = html.ImageElement()
+      ..src = '${widget.streamUrl}?t=$timestamp'
+      ..crossOrigin = 'anonymous'
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..style.objectFit = 'cover';
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) => _imageElement,
+    );
+  }
+
+  @override
+  void dispose() {
+    // Crucial: Clear the src to force the browser to abort the active HTTP MJPEG connection
+    _imageElement.src = '';
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HtmlElementView(viewType: _viewId);
   }
 }

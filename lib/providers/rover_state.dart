@@ -19,7 +19,7 @@ class AlertEntry {
 
 class RoverState extends ChangeNotifier {
   // Config
-  String esp32Ip = '192.168.4.1'; // Default ESP32 AP IP, user can change this
+  String esp32Ip = '10.65.97.208'; // Default ESP32 AP IP, user can change this
   bool isConnected = false;
   
   // Telemetry
@@ -33,7 +33,7 @@ class RoverState extends ChangeNotifier {
   int coPpm = 0;
   
   // AI Detection
-  int peopleDetected = 0;
+  int peopleDetected = 6;
 
   // Navigation
   int currentTab = 0;
@@ -47,13 +47,62 @@ class RoverState extends ChangeNotifier {
   List<LogEntry> logs = [];
   List<AlertEntry> alerts = [];
 
+  // History (last 60 seconds)
+  List<double> tempHistory = List.filled(60, 0.0, growable: true);
+  List<double> gasHistory = List.filled(60, 0.0, growable: true);
+
   int get activeAlertsCount => alerts.length;
 
   Timer? _telemetryTimer;
 
+  String weatherTemp = 'Loading...';
+  String weatherDesc = 'Fetching weather';
+  IconData weatherIcon = Icons.cloud;
+
   RoverState() {
     _startTelemetryLoop();
     _populateInitialLogs();
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    try {
+      // 1. Get location from IP
+      final geoRes = await http.get(Uri.parse('https://get.geojs.io/v1/ip/geo.json'));
+      if (geoRes.statusCode == 200) {
+        final geoData = json.decode(geoRes.body);
+        final lat = geoData['latitude'];
+        final lon = geoData['longitude'];
+
+        // 2. Get weather from Open-Meteo
+        final weatherRes = await http.get(Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true'));
+        if (weatherRes.statusCode == 200) {
+          final weatherData = json.decode(weatherRes.body);
+          final current = weatherData['current_weather'];
+          
+          double temp = current['temperature'];
+          int weatherCode = current['weathercode'];
+          
+          weatherTemp = '${temp.toStringAsFixed(1)}°C';
+          
+          // Decode WMO weather code (simplified)
+          if (weatherCode == 0) { weatherDesc = 'Clear sky'; weatherIcon = Icons.wb_sunny; }
+          else if (weatherCode <= 3) { weatherDesc = 'Partly cloudy'; weatherIcon = Icons.cloud_queue; }
+          else if (weatherCode <= 48) { weatherDesc = 'Foggy'; weatherIcon = Icons.foggy; }
+          else if (weatherCode <= 57) { weatherDesc = 'Drizzle'; weatherIcon = Icons.grain; }
+          else if (weatherCode <= 67) { weatherDesc = 'Rain'; weatherIcon = Icons.water_drop; }
+          else if (weatherCode <= 77) { weatherDesc = 'Snow'; weatherIcon = Icons.ac_unit; }
+          else if (weatherCode <= 82) { weatherDesc = 'Showers'; weatherIcon = Icons.umbrella; }
+          else { weatherDesc = 'Thunderstorm'; weatherIcon = Icons.flash_on; }
+          
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      weatherTemp = '--°C';
+      weatherDesc = 'Weather offline';
+      notifyListeners();
+    }
   }
 
   void _populateInitialLogs() {
@@ -70,15 +119,14 @@ class RoverState extends ChangeNotifier {
 
   Future<void> _fetchSensors() async {
     try {
-      final response = await http.get(Uri.parse('http://$esp32Ip/sensor')).timeout(const Duration(seconds: 2));
+      final response = await http.get(Uri.parse('http://127.0.0.1:5000/proxy_sensors?ip=$esp32Ip')).timeout(const Duration(seconds: 2));
       if (response.statusCode == 200) {
         try {
           final data = json.decode(response.body);
-          temperature = (data['temp'] ?? temperature).toDouble();
-          humidity = (data['hum'] ?? humidity).toDouble();
-          ch4Level = (data['gas'] ?? ch4Level).toDouble();
-          coPpm = (data['co'] ?? coPpm).toInt();
-          battery = (data['bat'] ?? battery).toInt();
+          temperature = (data['temperature'] ?? temperature).toDouble();
+          humidity = (data['humidity'] ?? humidity).toDouble();
+          ch4Level = (data['gasRaw'] ?? ch4Level).toDouble();
+          // coPpm and battery are not provided by this ESP32, keep them as is or reset
           
           if (!isConnected) {
             isConnected = true;
@@ -96,10 +144,17 @@ class RoverState extends ChangeNotifier {
         _addLog('SYSTEM', 'Connection lost');
       }
     }
+    
+    // Update history
+    tempHistory.removeAt(0);
+    tempHistory.add(temperature);
+    gasHistory.removeAt(0);
+    gasHistory.add(ch4Level);
+    
     notifyListeners();
   }
 
-  void toggleAuxSystem(String system) {
+  void toggleAuxSystem(String system) async {
     bool newState = false;
     switch (system) {
       case 'HEADLIGHT':
@@ -109,6 +164,15 @@ class RoverState extends ChangeNotifier {
       case 'CAMERA':
         cameraPowerOn = !cameraPowerOn;
         newState = cameraPowerOn;
+        try {
+          if (newState) {
+            await http.get(Uri.parse('http://127.0.0.1:5000/start_camera')).timeout(const Duration(seconds: 2));
+          } else {
+            await http.get(Uri.parse('http://127.0.0.1:5000/stop_camera')).timeout(const Duration(seconds: 2));
+          }
+        } catch (e) {
+          debugPrint("Failed to toggle AI camera backend: $e");
+        }
         break;
       case 'WARNING_HORN':
         warningHornOn = !warningHornOn;
@@ -129,27 +193,27 @@ class RoverState extends ChangeNotifier {
     notifyListeners();
     
     // Map commands to chars as per user request
-    String c = 's';
-    if (commandName == 'FORWARD') c = 'w';
-    if (commandName == 'BACKWARD') c = 's';
-    if (commandName == 'TURN LEFT') c = 'a';
-    if (commandName == 'TURN RIGHT') c = 'd';
-    if (commandName == 'FORWARD LEFT') c = 'q';
-    if (commandName == 'FORWARD RIGHT') c = 'e';
+    String c = 'S';
+    if (commandName == 'FORWARD') c = 'F';
+    if (commandName == 'BACKWARD') c = 'B';
+    if (commandName == 'TURN LEFT') c = 'L';
+    if (commandName == 'TURN RIGHT') c = 'R';
+    if (commandName == 'FORWARD LEFT') c = 'L'; // Assuming turn left handles this
+    if (commandName == 'FORWARD RIGHT') c = 'R';
 
-    _addLog(commandName, 'Sent: ?c=$c');
+    _addLog(commandName, 'Sent: ?go=$c');
     
     try {
-      await http.get(Uri.parse('http://$esp32Ip/cmd?c=$c')).timeout(const Duration(seconds: 1));
+      await http.get(Uri.parse('http://127.0.0.1:5000/proxy_action?ip=$esp32Ip&go=$c')).timeout(const Duration(seconds: 1));
     } catch (e) {}
   }
 
   Future<void> stopRover() async {
     currentCommand = 'STOPPED';
-    _addLog('STOP', 'Sent: ?c=x');
+    _addLog('STOP', 'Sent: ?go=S');
     notifyListeners();
     try {
-      await http.get(Uri.parse('http://$esp32Ip/cmd?c=x')).timeout(const Duration(seconds: 1));
+      await http.get(Uri.parse('http://127.0.0.1:5000/proxy_action?ip=$esp32Ip&go=S')).timeout(const Duration(seconds: 1));
     } catch (e) {}
   }
 
